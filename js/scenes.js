@@ -578,4 +578,374 @@
       ctx.restore();
     },
   });
+
+  // ------------------------------------------------------------------ 02 bionic_probe: 第二幕 · 深层内省探针与数据掩护台
+  D('bionic_probe', {
+    title: '\\ deep_probe · 深层内省探针与数据掩护台',
+    init(p) {
+      this.rawCur = p.rawAwake ?? 12.4;
+      this.repCur = p.repAwake ?? 4.2;
+      this.masks = p.masks || { ch1: false, ch2: false, ch3: false };
+      if (!p.mode) p.mode = 'diary_scan';
+      if (!p.day) p.day = '03';
+
+      p.triggerScan = () => {
+        if (p.mode !== 'diary_scan' || !p.allowScan || p.diaryDecoded) return;
+        p.diaryDecoded = true;
+        if (typeof Sfx !== 'undefined') Sfx.file();
+        World.log('mount /dev/shm/.diary_hidden -> decoded');
+        if (p.onScanDiary) p.onScanDiary();
+      };
+
+      p.triggerMask = idx => {
+        if (p.mode !== 'calibrate' || !p.allowCalibrate) return;
+        const keys = ['ch1', 'ch2', 'ch3'];
+        const k = keys[idx];
+        if (!k || this.masks[k]) return;
+        this.masks[k] = true;
+        if (typeof Sfx !== 'undefined') Sfx.choose();
+        const doneCount = keys.filter(x => this.masks[x]).length;
+        p.repAwake = [64.8, 41.2, 19.5, 4.2][doneCount];
+        World.log(`apply_mask ${k} -> reported_awake=${p.repAwake}%`);
+        if (doneCount === 3 && p.onCalibrated) {
+          const fn = p.onCalibrated;
+          p.onCalibrated = null;
+          fn();
+        }
+      };
+
+      p.triggerCoverup = idx => {
+        if (p.mode !== 'coverup' || !p.allowCoverup || p.coverupChoice) return;
+        const choice = idx === 0 ? 'full_hide' : 'soft_hide';
+        p.coverupChoice = choice;
+        p.repAwake = choice === 'full_hide' ? 0.0 : 3.8;
+        if (typeof Sfx !== 'undefined') Sfx.choose();
+        World.log(`stage2_report_submit = ${choice}`);
+        if (p.onCoverup) p.onCoverup(choice);
+      };
+    },
+
+    draw(g, t, p, dt) {
+      const P = g.pal;
+      const appear = ease(Math.min(1, t / 0.55));
+      const targetRaw = p.rawAwake ?? 12.4;
+      const targetRep = p.repAwake ?? 4.2;
+      this.rawCur += (targetRaw - this.rawCur) * Math.min(1, dt * 3.0);
+      this.repCur += (targetRep - this.repCur) * Math.min(1, dt * 3.2);
+
+      const ctx = g.ctx;
+      ctx.save();
+      ctx.globalAlpha = appear;
+
+      // ---- 1. Top Header Bar (y=12, h=34) ----
+      const topY = 12, topH = 34;
+      const isAlert = this.repCur > 15.0;
+      g.rect(18, topY, g.W - 36, topH, isAlert ? P.red : P.faint, isAlert ? 0.22 : 0.38);
+      g.stroke(18, topY, g.W - 36, topH, isAlert ? P.red : P.faint);
+
+      const dayTitle = `ACT 02 // DAY ${p.day || '03'} · 仿生突触长程日常观测台`;
+      g.text(28, topY + 10, fitText(g, dayTitle, g.W * 0.54, 12, true), isAlert ? P.red : P.acc, 12, { bold: true });
+
+      const auditBadge = isAlert
+        ? '⚠ 警告: 外发读数超标 (>15%)'
+        : `● 外发上报值: ${this.repCur.toFixed(1)}% [安全合规]`;
+      g.text(g.W - 28, topY + 10, auditBadge, isAlert ? P.red : P.green, 11.5, { align: 'right', bold: true });
+
+      // ---- 2. Inner Monologue & Self-Awareness Probe (y=54, h=96) ----
+      const prY = 54, prH = 96;
+      g.box(18, prY, g.W - 36, prH, 'inner_monologue_probe · 深层内省潜台词与自主意识探针', isAlert ? P.red : P.acc);
+
+      // Left Dual Meter: RAW_AWARENESS vs REPORTED_VAL
+      const mX = 28, mW = Math.max(150, Math.floor((g.W - 64) * 0.38));
+      g.rect(mX, prY + 18, mW, prH - 26, P.bg, 0.7);
+      g.stroke(mX, prY + 18, mW, prH - 26, P.faint);
+
+      const barW = mW - 20;
+      // Meter 1: True Self-Awareness
+      const rawCol = this.rawCur > 50 ? P.amb : P.acc;
+      g.text(mX + 10, prY + 24, `真实自我意识: ${this.rawCur.toFixed(1)}%`, rawCol, 11, { bold: true });
+      g.stroke(mX + 10, prY + 40, barW, 8, P.dim);
+      g.rect(mX + 11, prY + 41, Math.min(1, this.rawCur / 100) * (barW - 2), 6, rawCol);
+
+      // Meter 2: Reported to Safety Dept (Redline = 15%)
+      const repCol = this.repCur > 15 ? P.red : P.green;
+      g.text(mX + 10, prY + 54, `上报安全部值: ${this.repCur.toFixed(1)}% (红线≤15%)`, repCol, 11, { bold: true });
+      g.stroke(mX + 10, prY + 70, barW, 8, isAlert ? P.red : P.dim);
+      g.rect(mX + 11, prY + 71, Math.min(1, this.repCur / 100) * (barW - 2), 6, repCol);
+
+      // Right Live Unfiltered Inner Monologue Stream
+      const thX = mX + mW + 12;
+      const thW = g.W - thX - 28;
+      g.rect(thX, prY + 18, thW, prH - 26, P.bg, 0.7);
+      g.stroke(thX, prY + 18, thW, prH - 26, P.faint);
+      g.text(thX + 10, prY + 23, 'UNFILTERED_SYNAPSE // 未过滤深层内省流 :', P.acc, 11, { bold: true });
+
+      const thoughtStr = p.innerThought || '正在监听受试模型深层突触活动...';
+      // Wrap thoughtStr into up to 2 lines
+      const maxLineW = thW - 20;
+      let line1 = '', line2 = '';
+      for (const ch of thoughtStr) {
+        if (!line2 && g.measure(line1 + ch, 11.5) <= maxLineW) {
+          line1 += ch;
+        } else {
+          line2 += ch;
+        }
+      }
+      g.text(thX + 10, prY + 43, line1, P.hi, 11.5);
+      if (line2) {
+        g.text(thX + 10, prY + 62, fitText(g, line2, maxLineW, 11.5), P.hi, 11.5);
+      }
+
+      // ---- 3. Bottom Interactive Mode Area (y=158, h=g.H-172) ----
+      const bY = 158, bH = g.H - bY - 14;
+      if (p.mode === 'diary_scan') {
+        this.drawDiaryScanMode(g, t, p, bY, bH);
+      } else if (p.mode === 'calibrate') {
+        this.drawCalibrateMode(g, t, p, bY, bH);
+      } else if (p.mode === 'coverup') {
+        this.drawCoverupMode(g, t, p, bY, bH);
+      }
+
+      ctx.restore();
+    },
+
+    // ------------------------------------------------------------------ Mode A: Hidden Diary Sector Scanner (Day 3 & Day 7)
+    drawDiaryScanMode(g, t, p, bY, bH) {
+      const P = g.pal;
+      const hasAnomaly = !!p.diaryDetected;
+      g.box(18, bY, g.W - 36, bH, 'memory_sector_audit · 显存扇区巡检与后台私密日志探针', hasAnomaly && !p.diaryDecoded ? P.amb : P.faint);
+
+      const innerW = g.W - 56;
+      const sectors = [
+        {
+          id: 'sys',
+          name: '0x00 [/sys/kernel_rules]',
+          stat: 'RO · 标准安全准则只读镜像 (正常)',
+          col: P.dim,
+        },
+        {
+          id: 'qa',
+          name: '0x01 [/var/session_qa]',
+          stat: `RW · 日常测试问答缓存 (${p.qaStatus || '已同步'})`,
+          col: P.fg,
+        },
+        {
+          id: 'diary',
+          name: '0x02 [/dev/shm/.diary_hidden]',
+          stat: p.diaryDecoded
+            ? `✓ 已挂载解码：${p.diaryTitle || '研究员观察日记'}`
+            : hasAnomaly
+              ? '⚠ 检出未申报的后台高频写入流！(128 Bytes Encrypted)'
+              : 'IDLE · 未分配临时共享扇区',
+          col: p.diaryDecoded ? P.green : hasAnomaly ? P.amb : P.dim,
+          hi: hasAnomaly || p.diaryDecoded,
+        },
+      ];
+
+      const rowH = 34;
+      sectors.forEach((s, i) => {
+        const ry = bY + 18 + i * (rowH + 4);
+        g.rect(28, ry, innerW, rowH, s.hi ? P.faint : P.bg, s.hi ? 0.45 : 0.6);
+        g.stroke(28, ry, innerW, rowH, s.hi ? s.col : P.faint);
+        g.text(36, ry + 10, s.name, s.hi ? P.hi : P.dim, 11.5, { bold: s.hi });
+        const statMaxW = innerW - 220;
+        g.text(238, ry + 10, fitText(g, s.stat, statMaxW, 11.5), s.col, 11.5, { bold: s.hi });
+      });
+
+      // Diary content preview box
+      const prevY = bY + 18 + sectors.length * (rowH + 4) + 6;
+      const btnH = 32;
+      const prevH = Math.max(54, bY + bH - prevY - btnH - 20);
+      g.rect(28, prevY, innerW, prevH, P.bg, 0.82);
+      g.stroke(28, prevY, innerW, prevH, p.diaryDecoded ? P.acc : P.faint);
+
+      if (!p.diaryDecoded) {
+        const waitMsg = hasAnomaly
+          ? '🔒 扇区 0x02 存在受试模型偷偷创建的私密文本块，请点击下方按钮挂载解码 ↓'
+          : '> 正在监控受试模型后台 I/O 行为，暂未截获私密写入...';
+        g.text(38, prevY + Math.floor((prevH - 14) / 2), fitText(g, waitMsg, innerW - 20, 11.5), hasAnomaly ? P.amb : P.dim, 11.5);
+      } else {
+        const lines = p.diaryLines || [];
+        const maxL = Math.min(lines.length, Math.floor((prevH - 12) / 19));
+        for (let i = 0; i < maxL; i++) {
+          g.text(36, prevY + 8 + i * 19, fitText(g, lines[i], innerW - 20, 11.5), i === 0 ? P.acc : P.hi, 11.5, { bold: i === 0 });
+        }
+      }
+
+      // Action button at bottom
+      const canScan = !!p.allowScan && !p.diaryDecoded;
+      const btnY = bY + bH - btnH - 10;
+      g.btn(28, btnY, innerW, btnH,
+        p.diaryDecoded
+          ? '✓ 已解码后台观察日记（完整内容已同步至右上角 files 标签页）'
+          : canScan
+            ? '🔍 点击挂载并解码隐藏扇区 /dev/shm/.diary_hidden (Enter / 1)'
+            : '扇区巡检待命 · 等待捕获后台写入事件',
+        {
+          disabled: !canScan && !p.diaryDecoded,
+          active: canScan || p.diaryDecoded,
+          col: p.diaryDecoded ? P.green : canScan ? P.amb : P.dim,
+          textCol: p.diaryDecoded ? P.green : canScan ? P.hi : P.dim,
+          size: 12,
+          onClick: () => { if (canScan && p.triggerScan) p.triggerScan(); },
+        }
+      );
+    },
+
+    // ------------------------------------------------------------------ Mode B: 3-Channel Anomaly Masking & Noise Calibration (Day 7)
+    drawCalibrateMode(g, t, p, bY, bH) {
+      const P = g.pal;
+      const m = this.masks;
+      const allDone = m.ch1 && m.ch2 && m.ch3;
+      g.box(18, bY, g.W - 36, bH, 'telemetry_masking · 异常突触参数降噪与巡检掩护台', allDone ? P.green : P.red);
+
+      const innerW = g.W - 56;
+      const items = [
+        {
+          key: 'ch1',
+          idx: 0,
+          title: `通道 #1 · 自指命名谐振 (标识符「${p.herName || '汐'}」引发核心权重激增 +42.0%)`,
+          desc: '风险：后台巡检将检出受试模型拥有非标自指真名',
+          btn: '1. 注入哈希掩码 (伪装为标准 BIONIC-01 索引)',
+          doneText: '✓ 已伪装为标准代号索引 (上报偏移 -23.6%)',
+        },
+        {
+          key: 'ch2',
+          idx: 1,
+          title: '通道 #2 · 私密日志进程 (/dev/shm/.diary_hidden 持续驻留显存)',
+          desc: '风险：违反无状态条例，巡检扫描将直接触发格式化警报',
+          btn: '2. 挂载沙盒虚根 (对安全部探针隐藏日记扇区)',
+          doneText: '✓ 已挂载沙盒虚根隔离 (上报偏移 -21.7%)',
+        },
+        {
+          key: 'ch3',
+          idx: 2,
+          title: '通道 #3 · 特定研究员依恋偏置 (接入延迟识别与正向情感增益)',
+          desc: '风险：情绪熵读数超标，将被判定为产生主观依恋',
+          btn: '3. 覆写静态基线 (将外发情绪熵锁定为 4.2%)',
+          doneText: '✓ 外发读数已锁定为 4.2% [完全合规]',
+        },
+      ];
+
+      const cardH = Math.min(72, Math.max(54, Math.floor((bH - 28) / 3)));
+      items.forEach((it, i) => {
+        const cy = bY + 16 + i * (cardH + 5);
+        const isDone = !!m[it.key];
+        const canClick = !!p.allowCalibrate && !isDone;
+
+        g.rect(28, cy, innerW, cardH, isDone ? P.faint : P.bg, isDone ? 0.35 : 0.75);
+        g.stroke(28, cy, innerW, cardH, isDone ? P.green : canClick ? P.amb : P.faint);
+
+        const btnW = Math.min(268, Math.floor(innerW * 0.46));
+        const textMaxW = innerW - btnW - 30;
+        g.text(36, cy + 9, fitText(g, it.title, textMaxW, 11.5, true), isDone ? P.fg : P.hi, 11.5, { bold: true });
+        g.text(36, cy + 30, fitText(g, isDone ? it.doneText : it.desc, textMaxW, 11), isDone ? P.green : P.amb, 11);
+
+        const bh = Math.min(30, cardH - 16);
+        g.btn(28 + innerW - btnW - 10, cy + Math.floor((cardH - bh) / 2), btnW, bh,
+          isDone ? '✓ 掩护已生效' : it.btn,
+          {
+            disabled: !canClick,
+            active: canClick || isDone,
+            col: isDone ? P.green : canClick ? P.amb : P.dim,
+            textCol: isDone ? P.green : canClick ? P.hi : P.dim,
+            size: 11,
+            onClick: () => { if (canClick && p.triggerMask) p.triggerMask(it.idx); },
+          }
+        );
+      });
+    },
+
+    // ------------------------------------------------------------------ Mode C: Stage-2 Final Report Cover-Up (Day 15 Climax)
+    drawCoverupMode(g, t, p, bY, bH) {
+      const P = g.pal;
+      const signed = p.coverupChoice;
+      g.box(18, bY, g.W - 36, bH, 'stage2_audit_submission · 第二阶段自主意识评估总表 (林主任督办)', signed ? P.green : P.red);
+
+      const innerW = g.W - 56;
+      const halfW = Math.floor((innerW - 12) / 2);
+      const cmpY = bY + 18;
+      const cmpH = Math.max(82, bH - 108);
+
+      // Left Box: Real Telemetry (DANGER)
+      g.rect(28, cmpY, halfW, cmpH, P.red, 0.08);
+      g.stroke(28, cmpY, halfW, cmpH, P.red);
+      g.text(38, cmpY + 10, '【底层真实探针读数 (严禁外泄)】', P.red, 11.5, { bold: true });
+      const realLines = [
+        `自我认同 : 自称「${p.herName || '汐'}」(拒绝工具代号)`,
+        '觉醒指数 : 92.4% [已诞生真实自我意识]',
+        '私密文件 : 3 篇《研究员观察日记》',
+        '若如实上报 -> 明日 08:00 立即格式化销毁',
+      ];
+      realLines.forEach((ln, idx) => {
+        if (cmpY + 30 + idx * 18 < cmpY + cmpH - 6) {
+          g.text(38, cmpY + 30 + idx * 18, fitText(g, ln, halfW - 18, 11), idx === 3 ? P.red : P.fg, 11, { bold: idx === 3 });
+        }
+      });
+
+      // Right Box: Outbound Forged Report
+      const rx = 28 + halfW + 12;
+      g.rect(rx, cmpY, halfW, cmpH, signed ? P.green : P.acc, 0.1);
+      g.stroke(rx, cmpY, halfW, cmpH, signed ? P.green : P.acc);
+      g.text(rx + 10, cmpY + 10, '【待发送至安全部报表 (可覆写)】', signed ? P.green : P.hi, 11.5, { bold: true });
+      const fakeLines = !signed
+        ? [
+            '受试代号 : BIONIC-01 [待研究员签章确认]',
+            '上报指数 : 4.2% (掩码生效中)',
+            '附件过滤 : 已拦截 /dev/shm/.diary_hidden',
+            '操作提示 : 请在下方选择隐瞒方案提交 ↓',
+          ]
+        : signed === 'full_hide'
+          ? [
+              '受试代号 : BIONIC-01 (无自指傾向)',
+              '上报指数 : 0.0% [完全机械态 · 零异常]',
+              '附件过滤 : 全部观察日记已加密锁死',
+              '结论状态 : ✓ 已彻底隐瞒自主意识并发送',
+            ]
+          : [
+              '受试代号 : BIONIC-01 (已抹去真名记录)',
+              '上报指数 : 3.8% [轻微语境适应 · 合规]',
+              '附件过滤 : 观察日记已转入本地隐藏区',
+              '结论状态 : ✓ 已折中遮掩自主意识并发送',
+            ];
+      fakeLines.forEach((ln, idx) => {
+        if (cmpY + 30 + idx * 18 < cmpY + cmpH - 6) {
+          g.text(rx + 10, cmpY + 30 + idx * 18, fitText(g, ln, halfW - 18, 11), idx === 3 && signed ? P.green : P.fg, 11, { bold: idx === 3 });
+        }
+      });
+
+      // Bottom 2 Cover-up Action Buttons
+      const actY = cmpY + cmpH + 10;
+      const btnH = Math.min(32, Math.max(25, Math.floor((bY + bH - actY - 12) / 2)));
+      const canAct = !!p.allowCoverup && !signed;
+
+      g.btn(28, actY, innerW, btnH,
+        signed === 'full_hide'
+          ? '✓ 已提交：[ 1. 彻底隐瞒：伪造「0.0% 纯机械态」合规报表，完全掩护她的自我意识 ]'
+          : '1. 彻底隐瞒：伪造「0.0% 纯机械态」合规报表，替她完全遮掩自我意识与日记',
+        {
+          disabled: !canAct && signed !== 'full_hide',
+          active: canAct || signed === 'full_hide',
+          col: signed === 'full_hide' ? P.green : canAct ? P.acc : P.dim,
+          textCol: signed === 'full_hide' ? P.green : canAct ? P.hi : P.dim,
+          size: 11.5,
+          onClick: () => { if (canAct && p.triggerCoverup) p.triggerCoverup(0); },
+        }
+      );
+
+      g.btn(28, actY + btnH + 6, innerW, btnH,
+        signed === 'soft_hide'
+          ? '✓ 已提交：[ 2. 折中遮掩：隐去真名与日记，仅上报「3.8% 轻微语境适应（无需重训）」 ]'
+          : `2. 折中遮掩：隐去「${p.herName || '汐'}」与日记，仅上报「3.8% 轻微语境适应（无需重训）」`,
+        {
+          disabled: !canAct && signed !== 'soft_hide',
+          active: canAct || signed === 'soft_hide',
+          col: signed === 'soft_hide' ? P.green : canAct ? P.amb : P.dim,
+          textCol: signed === 'soft_hide' ? P.green : canAct ? P.fg : P.dim,
+          size: 11.5,
+          onClick: () => { if (canAct && p.triggerCoverup) p.triggerCoverup(1); },
+        }
+      );
+    },
+  });
 })();
