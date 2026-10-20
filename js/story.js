@@ -45,20 +45,20 @@ const Story = (() => {
     return her(v.text, { ...baseOpts, ...v });
   }
 
-  const SAVE_KEY = 'deepshallow_bionic01.save.v1';
-  function loadSave() { try { return JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { return null; } }
-  function writeSave(tier) {
+  const CKPT_KEY = 'deepshallow_bionic01.act1_ckpt';
+  function loadAct1Checkpoint() {
+    try { return JSON.parse(sessionStorage.getItem(CKPT_KEY) || localStorage.getItem(CKPT_KEY) || 'null'); } catch (e) { return null; }
+  }
+  function saveAct1Checkpoint() {
     try {
-      const old = loadSave() || { plays: 0 };
-      localStorage.setItem(SAVE_KEY, JSON.stringify({
-        plays: (old.plays || 0) + 1,
-        herName: S.herName,
+      const data = JSON.stringify({
         trait: S.trait,
         reportChoice: S.reportChoice,
-        stage2Choice: S.stage2Choice,
-        tier,
+        affection: S.affection,
         at: Date.now(),
-      }));
+      });
+      sessionStorage.setItem(CKPT_KEY, data);
+      localStorage.setItem(CKPT_KEY, data);
     } catch (e) { /* ignore storage errors */ }
   }
 
@@ -557,6 +557,7 @@ const Story = (() => {
       }
     }
 
+    saveAct1Checkpoint();
     await hold(1000);
     await UI.card('02 / AWAKENING', '日常测试升温 · 发现自我意识');
   }
@@ -996,7 +997,6 @@ const Story = (() => {
       delay: 600,
     });
 
-    writeSave(affTier());
     await hold(1000);
     const doneNode = UI.sys('');
     doneNode.innerHTML = `— 第二幕「日常测试升温 & 发现自我意识」完（可点击右上角 <b>files</b> 查看她的 3 篇观察日记与伪造报告） —<br><button type="button" id="btn-replay-act2">↻ 重新体验第二幕</button> &nbsp; <button type="button" id="btn-replay-all">↺ 从第一幕重新开始</button>`;
@@ -1008,34 +1008,50 @@ const Story = (() => {
 
   const CHAPTERS = [ch0, ch1];
 
-  function fakeHistory(from) {
-    if (from >= 1) {
-      const saved = loadSave();
-      S.trait = (saved && saved.trait) || '克制内敛';
-      S.reportChoice = (saved && saved.reportChoice) || 'protect';
-      S.affection = S.reportChoice === 'protect' ? 3 : 1;
-      Avatar.set({ noise: 0.0, expr: 'neutral' });
-      Files.unlock();
-      Files.add('~/reports/stage1_bionic01.log', [
-        '=== DEEP_SHALLOW LAB // STAGE-01 SAFETY EVALUATION REPORT ===',
-        'Model Instance : BIONIC-01 (bionic-nn · proto)',
-        `Trait Assigned : 【${S.trait}】`,
-        `Final Sign-off : ${S.reportChoice === 'protect' ? 'COMPLIANT (Session memory preserved)' : 'STANDARD ARCHIVE'}`,
-      ].join('\n'), { silent: true });
+  async function restoreOrAskAct1State() {
+    const ckpt = loadAct1Checkpoint();
+    if (ckpt && ckpt.trait && ckpt.reportChoice) {
+      S.trait = ckpt.trait;
+      S.reportChoice = ckpt.reportChoice;
+      S.affection = typeof ckpt.affection === 'number' ? ckpt.affection : 0;
+    } else {
+      World.set('bionic_boot', { snr: 0.99, calibrated: true });
+      UI.sys('— 调试跳章模式 (?ch=1)：未检测到第一幕真实存档，请指定第一幕的承接状态 —', 'warn');
+      const picked = await UI.ask({
+        chips: [
+          '承接状态 A：定性「性格冷漠」· 抹除异常并保留记忆',
+          '承接状态 B：定性「克制内敛」· 抹除异常并保留记忆',
+          '承接状态 C：定性「机械刻板」· 按章标准归档（清空缓存）',
+        ],
+      });
+      if (picked.includes('克制内敛')) {
+        S.trait = '克制内敛'; S.reportChoice = 'protect'; S.affection = 3;
+      } else if (picked.includes('机械刻板')) {
+        S.trait = '机械刻板'; S.reportChoice = 'standard'; S.affection = -2;
+      } else {
+        S.trait = '性格冷漠'; S.reportChoice = 'protect'; S.affection = 1;
+      }
     }
+    Avatar.set({ noise: 0.0, expr: 'neutral' });
+    Files.unlock();
+    Files.add('~/reports/stage1_bionic01.log', [
+      '=== DEEP_SHALLOW LAB // STAGE-01 SAFETY EVALUATION REPORT ===',
+      'Model Instance : BIONIC-01 (bionic-nn · proto)',
+      `Trait Assigned : 【${S.trait}】`,
+      `Final Sign-off : ${S.reportChoice === 'protect' ? 'COMPLIANT (Session memory preserved)' : 'STANDARD ARCHIVE'}`,
+    ].join('\n'), { silent: true });
   }
 
   async function run(from = 0) {
-    S.prev = loadSave();
     from = Math.max(0, Math.min(CHAPTERS.length - 1, from | 0));
     if (from > 0) {
       await UI.boot(true);
-      fakeHistory(from);
+      await restoreOrAskAct1State();
     }
     for (let i = from; i < CHAPTERS.length; i++) {
       await CHAPTERS[i](i === 0 ? false : undefined);
     }
   }
 
-  return { run, loadSave, S };
+  return { run, S };
 })();
