@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>深浅智能 · 仿生神经安全测试</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link id="main-css" rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app" class="theme-blue boot">
+  <div id="bootpx" hidden></div>
+
+  <header id="topbar">
+    <span class="tb-title">DEEP_SHALLOW_LAB // SAFETY_TEST</span>
+    <span class="tb-host">researcher@deepshallow-ai:~</span>
+    <span id="tb-meter" class="tb-meter"></span>
+    <span id="tb-chapter">00 / INIT</span>
+    <span id="tb-clock">00:00</span>
+    <span id="tb-state" class="tb-state">STANDBY</span>
+    <button id="btn-mute" type="button" title="静音 (M)">♪</button>
+  </header>
+
+  <main id="main">
+    <section id="chat" class="pane">
+      <div class="pane-label">\ session · bionic_proto</div>
+      <div id="chat-head">
+        <canvas id="head-avatar" width="112" height="112"></canvas>
+        <div class="head-meta">
+          <div id="head-name">未知模型</div>
+          <div id="head-status" class="st-off"><i class="dot"></i><span id="status-text">待唤醒</span></div>
+        </div>
+      </div>
+      <div id="messages" aria-live="polite"></div>
+      <div id="chips"></div>
+      <div id="composer">
+        <textarea id="input" rows="2" placeholder="发消息……" disabled></textarea>
+        <div class="composer-row">
+          <span class="c-btn" title="挂载">＋</span><span class="c-btn" title="探针">⌁</span>
+          <span id="model-tag">bionic-nn · proto</span>
+          <button id="send" type="button" disabled aria-label="发送">↑</button>
+        </div>
+      </div>
+      <div id="chat-foot"><span id="foot-turns">0 轮 0 步</span> · <span id="foot-tok">0 tok</span> · <span id="foot-cache">缓存命中 0%</span></div>
+    </section>
+
+    <section id="world" class="pane">
+      <div class="pane-label"><span id="world-title">\ world</span></div>
+      <div id="tabs">
+        <button type="button" data-tab="world" class="active">world</button>
+        <button type="button" data-tab="files" id="tab-files" class="locked" title="尚未解锁">files</button>
+      </div>
+      <div id="world-hint" hidden></div>
+      <canvas id="world-canvas"></canvas>
+      <div id="files" hidden>
+        <ul id="file-tree"></ul>
+        <pre id="file-view">选择一个文件。</pre>
+      </div>
+    </section>
+  </main>
+
+  <footer id="stdout">
+    <span class="so-label">stdout · token stream</span>
+    <div id="so-line">&gt; <span id="so-text"></span><span class="cursor">█</span></div>
+  </footer>
+
+  <div id="card" hidden><div class="card-main"></div><div class="card-sub"></div></div>
+  <div id="overlay" hidden></div>
+</div>
+
+<script src="js/audio.js"></script>
+<script src="js/avatar.js"></script>
+<script src="js/world.js"></script>
+<script src="js/scenes.js"></script>
+<script src="js/files.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/story.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
