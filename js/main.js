@@ -13,7 +13,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   const prev = Story.loadSave();
   const residue = prev
-    ? `<div class="residue">检测到 ${prev.plays} 次历史基线测试记录 · 上一次评估结论为「${UI.esc(prev.trait || '性格冷漠')}」</div>`
+    ? `<div class="residue">检测到 ${prev.plays} 次历史基线测试记录 · 上一次定性「${UI.esc(prev.trait || '性格冷漠')}」· 报告终审「${prev.reportChoice === 'protect' ? '抹除异常并保留记忆' : '标准归档'}」</div>`
     : '';
   const o = UI.overlay(`
     <div class="title">

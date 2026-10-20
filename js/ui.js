@@ -374,6 +374,7 @@ const UI = (() => {
       if (e.target === $('#input')) return;
       if (e.key === 'm' || e.key === 'M') { $('#btn-mute').click(); return; }
       if (st.ask) {
+        if (e.key === 'Enter' && st.ask.onEnter) { e.preventDefault(); st.ask.onEnter(); return; }
         const k = e.key.toLowerCase();
         const i = k === 'a' ? 0 : k === 'b' ? 1 : k === 'c' ? 2 : /^[1-9]$/.test(k) ? Number(k) - 1 : -1;
         if (i >= 0 && i < st.ask.n) { e.preventDefault(); st.ask.pick(i); return; }
@@ -401,6 +402,8 @@ const UI = (() => {
     soClear,
     set speed(v) { st.speed = v; }, get speed() { return st.speed; },
     set glitch(v) { st.glitch = v; }, get glitch() { return st.glitch; },
+    get speaking() { return st.speaking; },
+    get inputValue() { const el = $('#input'); return el ? el.value : ''; },
     resetStartTime() { st.startAt = performance.now(); },
   };
 })();
